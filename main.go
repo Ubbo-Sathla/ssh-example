@@ -83,6 +83,7 @@ func main() {
 		}
 
 		log.Printf("New SSH connection from %s (%s)", sshConn.RemoteAddr(), sshConn.ClientVersion())
+		handle(tcpConn)
 		// Discard all global out-of-band Requests
 		go ssh.DiscardRequests(reqs)
 		// Accept all channels
@@ -195,4 +196,41 @@ type Winsize struct {
 func SetWinsize(fd uintptr, w, h uint32) {
 	ws := &Winsize{Width: uint16(w), Height: uint16(h)}
 	syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(syscall.TIOCSWINSZ), uintptr(unsafe.Pointer(ws)))
+}
+
+func handle(upConn net.Conn) {
+	defer upConn.Close()
+	log.Printf("accepted: %s", upConn.RemoteAddr())
+	downConn, err := net.Dial("tcp", "10.127.253.187:22")
+	if err != nil {
+		log.Printf("unable to connect to %s: %s", "10.127.253.187:22", err)
+		return
+	}
+	defer downConn.Close()
+	if err := Pipe(upConn, downConn); err != nil {
+		log.Printf("pipe failed: %s", err)
+	} else {
+		log.Printf("disconnected: %s", upConn.RemoteAddr())
+	}
+}
+func Pipe(a, b net.Conn) error {
+	done := make(chan error, 1)
+
+	cp := func(r, w net.Conn) {
+		n, err := io.Copy(r, w)
+		log.Printf("copied %d bytes from %s to %s", n, r.RemoteAddr(), w.RemoteAddr())
+		done <- err
+	}
+
+	go cp(a, b)
+	go cp(b, a)
+	err1 := <-done
+	err2 := <-done
+	if err1 != nil {
+		return err1
+	}
+	if err2 != nil {
+		return err2
+	}
+	return nil
 }
