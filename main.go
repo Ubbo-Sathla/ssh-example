@@ -51,6 +51,7 @@ func main() {
 		// NoClientAuth: true,
 		ServerVersion: "SSH-2.0-GO-SERVER",
 		BannerCallback: func(conn ssh.ConnMetadata) string {
+			fmt.Printf("session:%s remote:%s local:%s user:%s\n", conn.SessionID(), conn.RemoteAddr(), conn.LocalAddr(), conn.User())
 			return "hello func\n"
 		},
 	}
