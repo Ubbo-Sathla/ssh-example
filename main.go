@@ -50,6 +50,9 @@ func main() {
 		// sessions may not be a wise idea
 		// NoClientAuth: true,
 		ServerVersion: "SSH-2.0-GO-SERVER",
+		BannerCallback: func(conn ssh.ConnMetadata) string {
+			return "hello func\n"
+		},
 	}
 	pri, err := generateSigner()
 	log.Printf("%#v", pri.PublicKey())
@@ -106,6 +109,7 @@ func handleChannel(newChannel ssh.NewChannel) {
 	// At this point, we have the opportunity to reject the client's
 	// request for another logical connection
 	connection, requests, err := newChannel.Accept()
+
 	if err != nil {
 		log.Printf("Could not accept channel (%s)", err)
 		return
