@@ -52,6 +52,7 @@ func main() {
 		ServerVersion: "SSH-2.0-GO-SERVER",
 	}
 	pri, err := generateSigner()
+	log.Printf("%#v", pri.PublicKey())
 	if err != nil {
 		log.Println(err)
 	}
