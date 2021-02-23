@@ -3,6 +3,8 @@ package main
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"github.com/creack/pty"
@@ -11,6 +13,7 @@ import (
 	"log"
 	"net"
 	"os/exec"
+	"strings"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -23,6 +26,15 @@ func generateSigner() (ssh.Signer, error) {
 	}
 	return ssh.NewSignerFromKey(key)
 }
+func fingerprint(k ssh.PublicKey) string {
+	bytes := sha256.Sum256(k.Marshal())
+	b64 := base64.StdEncoding.EncodeToString(bytes[:])
+	if strings.HasSuffix(b64, "=") {
+		b64 = strings.TrimSuffix(b64, "=") + "."
+	}
+	return "SHA256:" + b64
+}
+
 func main() {
 
 	config := &ssh.ServerConfig{
@@ -39,11 +51,13 @@ func main() {
 		// NoClientAuth: true,
 		ServerVersion: "SSH-2.0-GO-SERVER",
 	}
-	key, err := generateSigner()
+	pri, err := generateSigner()
 	if err != nil {
 		log.Println(err)
 	}
-	config.AddHostKey(key)
+	config.AddHostKey(pri)
+	log.Printf("RSA key fingerprint is %s", fingerprint(pri.PublicKey()))
+
 	listener, err := net.Listen("tcp", "127.0.0.1:2222")
 	if err != nil {
 		log.Fatalf("Failed to listen on 2200 (%s)", err)
@@ -176,4 +190,3 @@ func SetWinsize(fd uintptr, w, h uint32) {
 	ws := &Winsize{Width: uint16(w), Height: uint16(h)}
 	syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(syscall.TIOCSWINSZ), uintptr(unsafe.Pointer(ws)))
 }
-
